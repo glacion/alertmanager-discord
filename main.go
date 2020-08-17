@@ -112,35 +112,47 @@ func sendMessage(amo alertManOut) {
 
 		DO.Embeds = []discordEmbed{RichEmbed}
 
-		DOD, _ := json.Marshal(DO)
-		logger.Printf("Sending to discord as %+v", DO)
-		http.Post(webhookURL, "application/json", bytes.NewReader(DOD))
+		DOD, err := json.Marshal(DO)
+		if err != nil {
+			logger.Fatalf("%+v\n", err)
+			return
+		}
+		logger.Printf("Sending to discord as %s\n", string(DOD))
+		response, err := http.Post(webhookURL, "application/json", bytes.NewReader(DOD))
+		if err != nil {
+			logger.Fatalf("%+v\n", response)
+			logger.Fatalf("%+v\n", err)
+		} else {
+			logger.Printf("%+v\n", response)
+		}
 	}
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		panic(err)
+		logger.Fatalf("%+v\n", err)
+		return
 	}
 
 	amo := alertManOut{}
 	err = json.Unmarshal(b, &amo)
 	if err != nil {
-		panic(err)
+		logger.Fatalf("%+v\n", err)
+		return
 	}
-	logger.Printf("Received alert %+v\n", amo)
+	logger.Printf("Received alert %s\n", string(b))
 	sendMessage(amo)
 }
 
 func main() {
+	logger = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 	webhookURL = os.Getenv("DISCORD_WEBHOOK")
 
 	if webhookURL == "" {
-		fmt.Fprintf(os.Stderr, "error: environment variable DISCORD_WEBHOOK not found\n")
+		logger.Fatalln("Environment variable DISCORD_WEBHOOK not found")
 		os.Exit(1)
 	}
-	logger = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 
 	logger.Println("Listening on 0.0.0.0:9094")
 	logger.Fatalln(http.ListenAndServe(":9094", http.HandlerFunc(handler)))
