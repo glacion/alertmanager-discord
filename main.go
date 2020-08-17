@@ -54,11 +54,11 @@ type discordEmbedField struct {
 }
 
 func sendMessage(amo alertManOut) {
-	DO := discordOut{Embeds: make([]discordEmbed, 0)}
+	DO := discordOut{Embeds: []discordEmbed{}}
 
 	RichEmbed := discordEmbed{
 		Title:  amo.GroupLabels.AlertName,
-		Fields: make([]discordEmbedField, 0),
+		Fields: []discordEmbedField{},
 	}
 
 	switch amo.Status {
@@ -91,11 +91,12 @@ func sendMessage(amo alertManOut) {
 		logger.Fatalf("%+v\n", response)
 		logger.Fatalf("%+v\n", err)
 	} else {
-		logger.Printf("%+v\n", response)
+		logger.Println("Successfully sent message")
 	}
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
+	logger.Printf("%+v\n", *r)
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		logger.Fatalf("%+v\n", err)
