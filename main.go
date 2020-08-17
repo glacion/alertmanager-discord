@@ -3,12 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 )
 
 var (
@@ -25,44 +23,29 @@ const (
 
 type alertManAlert struct {
 	Annotations struct {
-		Description string `json:"description"`
-		Summary     string `json:"summary"`
+		Message string `json:"message"`
 	} `json:"annotations"`
-	EndsAt       string            `json:"endsAt"`
-	GeneratorURL string            `json:"generatorURL"`
-	Labels       map[string]string `json:"labels"`
-	StartsAt     string            `json:"startsAt"`
-	Status       string            `json:"status"`
+	Labels struct {
+		AlertName string `json:"alertname"`
+	} `json:"labels"`
 }
 
 type alertManOut struct {
-	Alerts            []alertManAlert `json:"alerts"`
-	CommonAnnotations struct {
-		Summary string `json:"summary"`
-	} `json:"commonAnnotations"`
-	CommonLabels struct {
-		Alertname string `json:"alertname"`
-	} `json:"commonLabels"`
-	ExternalURL string `json:"externalURL"`
-	GroupKey    string `json:"groupKey"`
+	Alerts      []alertManAlert `json:"alerts"`
+	Status      string          `json:"status"`
 	GroupLabels struct {
-		Alertname string `json:"alertname"`
+		AlertName string `json:"alertname"`
 	} `json:"groupLabels"`
-	Receiver string `json:"receiver"`
-	Status   string `json:"status"`
-	Version  string `json:"version"`
 }
 
 type discordOut struct {
-	Content string         `json:"content"`
-	Embeds  []discordEmbed `json:"embeds"`
+	Embeds []discordEmbed `json:"embeds"`
 }
 
 type discordEmbed struct {
-	Title       string              `json:"title"`
-	Description string              `json:"description"`
-	Color       int                 `json:"color"`
-	Fields      []discordEmbedField `json:"fields"`
+	Title  string              `json:"title"`
+	Color  int                 `json:"color"`
+	Fields []discordEmbedField `json:"fields"`
 }
 
 type discordEmbedField struct {
@@ -71,60 +54,44 @@ type discordEmbedField struct {
 }
 
 func sendMessage(amo alertManOut) {
+	DO := discordOut{Embeds: make([]discordEmbed, 0)}
 
-	groupedAlerts := make(map[string][]alertManAlert)
-
-	for _, alert := range amo.Alerts {
-		groupedAlerts[alert.Status] = append(groupedAlerts[alert.Status], alert)
+	RichEmbed := discordEmbed{
+		Title:  amo.GroupLabels.AlertName,
+		Fields: make([]discordEmbedField, 0),
 	}
 
-	for status, alerts := range groupedAlerts {
-		DO := discordOut{}
+	switch amo.Status {
+	case "firing":
+		RichEmbed.Color = ColorRed
+	case "resolved":
+		RichEmbed.Color = ColorGreen
+	default:
+		RichEmbed.Color = ColorGrey
+	}
 
-		RichEmbed := discordEmbed{
-			Title:       fmt.Sprintf("[%s:%d] %s", strings.ToUpper(status), len(alerts), amo.CommonLabels.Alertname),
-			Description: amo.CommonAnnotations.Summary,
-			Color:       ColorGrey,
-			Fields:      []discordEmbedField{},
+	for _, alert := range amo.Alerts {
+		field := discordEmbedField{
+			Name:  alert.Labels.AlertName,
+			Value: alert.Annotations.Message,
 		}
+		RichEmbed.Fields = append(RichEmbed.Fields, field)
+	}
 
-		if status == "firing" {
-			RichEmbed.Color = ColorRed
-		} else {
-			RichEmbed.Color = ColorGreen
-		}
+	DO.Embeds = append(DO.Embeds, RichEmbed)
 
-		if amo.CommonAnnotations.Summary != "" {
-			DO.Content = fmt.Sprintf(" === %s === \n", amo.CommonAnnotations.Summary)
-		}
-
-		for _, alert := range alerts {
-			realname := alert.Labels["instance"]
-			if strings.Contains(realname, "localhost") && alert.Labels["exported_instance"] != "" {
-				realname = alert.Labels["exported_instance"]
-			}
-
-			RichEmbed.Fields = append(RichEmbed.Fields, discordEmbedField{
-				Name:  fmt.Sprintf("[%s]: %s on %s", strings.ToUpper(status), alert.Labels["alertname"], realname),
-				Value: alert.Annotations.Description,
-			})
-		}
-
-		DO.Embeds = []discordEmbed{RichEmbed}
-
-		DOD, err := json.Marshal(DO)
-		if err != nil {
-			logger.Fatalf("%+v\n", err)
-			return
-		}
-		logger.Printf("Sending to discord as %s\n", string(DOD))
-		response, err := http.Post(webhookURL, "application/json", bytes.NewReader(DOD))
-		if err != nil {
-			logger.Fatalf("%+v\n", response)
-			logger.Fatalf("%+v\n", err)
-		} else {
-			logger.Printf("%+v\n", response)
-		}
+	DOD, err := json.Marshal(DO)
+	if err != nil {
+		logger.Fatalf("%+v\n", err)
+		return
+	}
+	logger.Printf("Sending to discord as %s\n", string(DOD))
+	response, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(DOD))
+	if err != nil {
+		logger.Fatalf("%+v\n", response)
+		logger.Fatalf("%+v\n", err)
+	} else {
+		logger.Printf("%+v\n", response)
 	}
 }
 
@@ -141,7 +108,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		logger.Fatalf("%+v\n", err)
 		return
 	}
-	logger.Printf("Received alert %s\n", string(b))
+	logger.Printf("Received alert %+v\n", amo)
 	sendMessage(amo)
 }
 
