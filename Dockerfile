@@ -22,3 +22,4 @@ EXPOSE 9094
 COPY --from=builder /go/bin/app /go/bin/app
 
 ENTRYPOINT ["/go/bin/app"]
+

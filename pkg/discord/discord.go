@@ -1,6 +1,6 @@
 package discord
 
-import "bigo.digital/alertmanager-discord/pkg/alertmanager"
+import "github.com/glacion/alertmanager-discord/pkg/alertmanager"
 
 // Colors
 const (
@@ -16,8 +16,8 @@ type Payload struct {
 
 type embed struct {
 	Title  string       `json:"title"`
-	Color  int          `json:"color"`
 	Fields []embedField `json:"fields"`
+	Color  int          `json:"color"`
 }
 
 type embedField struct {

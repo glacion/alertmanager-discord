@@ -2,9 +2,9 @@ package alertmanager
 
 // Payload Struct for the received alert
 type Payload struct {
-	Alerts      []alert     `json:"alerts"`
 	Status      string      `json:"status"`
 	GroupLabels groupLabels `json:"groupLabels"`
+	Alerts      []alert     `json:"alerts"`
 }
 
 type alert struct {

@@ -9,16 +9,16 @@ import (
 	"net/http"
 	"os"
 
-	"bigo.digital/alertmanager-discord/pkg/alertmanager"
-	"bigo.digital/alertmanager-discord/pkg/discord"
+	"github.com/glacion/alertmanager-discord/pkg/alertmanager"
+	"github.com/glacion/alertmanager-discord/pkg/discord"
 	"github.com/gorilla/mux"
 	"github.com/plaid/go-envvar/envvar"
 )
 
 type envVars struct {
-	Port       int    `envvar:"PORT" default:"9094"`
 	Address    string `envvar:"ADDRESS" default:"0.0.0.0"`
 	WebhookURL string `envvar:"DISCORD_WEBHOOK"`
+	Port       int    `envvar:"PORT" default:"9094"`
 }
 
 var (
@@ -42,7 +42,7 @@ func sendMessage(payload alertmanager.Payload) {
 	}
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func handler(_ http.ResponseWriter, r *http.Request) {
 	logger.Printf("%+v\n", *r)
 	body, err := ioutil.ReadAll(r.Body)
 
@@ -62,7 +62,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	sendMessage(payload)
 }
 
-func healthCheck(w http.ResponseWriter, r *http.Request) {
+func healthCheck(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
